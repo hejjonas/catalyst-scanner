@@ -427,6 +427,7 @@
         <div class="header">
             <h1>🔬 Catalyst Scanner</h1>
             <p>OSSDSIGN Medical Device Tracking</p>
+            <p style="font-size: 11px; opacity: 0.7; margin-top: 5px;">Version 2.0</p>
         </div>
 
         <div class="content">
@@ -597,7 +598,7 @@
                 <div class="success-icon">✅</div>
                 <div class="step-title" style="text-align: center;">Email Sent Successfully!</div>
                 <div class="status-message status-success">
-                    Report sent to <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f29893b29d818196819b959cdc919d9f">[email&#160;protected]</a>
+                    Report sent to ja@ossdsign.com
                 </div>
                 <div class="info-card">
                     <div class="info-row">
@@ -614,7 +615,7 @@
         </div>
     </div>
 
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    <script>
         // Global state
         let productData = {
             lotNumber: '',
@@ -1139,4 +1140,11 @@
 
         // Show status message
         function showStatus(elementId, message, type) {
-            const statusEl = docume
+            const statusEl = document.getElementById(elementId);
+            statusEl.textContent = message;
+            statusEl.className = 'status-message status-' + type;
+            statusEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
