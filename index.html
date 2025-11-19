@@ -597,7 +597,7 @@
                 <div class="success-icon">✅</div>
                 <div class="step-title" style="text-align: center;">Email Sent Successfully!</div>
                 <div class="status-message status-success">
-                    Report sent to ja@ossdsign.com
+                    Report sent to <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f29893b29d818196819b959cdc919d9f">[email&#160;protected]</a>
                 </div>
                 <div class="info-card">
                     <div class="info-row">
@@ -614,7 +614,7 @@
         </div>
     </div>
 
-    <script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
         // Global state
         let productData = {
             lotNumber: '',
@@ -1097,7 +1097,7 @@
                     // Show success
                     showStep(5);
                     document.getElementById('successLotNumber').textContent = productData.lotNumber;
-                    document.getElementById('successTime').textContent = new Date().toLocaleTime String();
+                    document.getElementById('successTime').textContent = new Date().toLocaleTimeString();
                 }, 1000);
                 
             } catch (error) {
@@ -1139,11 +1139,4 @@
 
         // Show status message
         function showStatus(elementId, message, type) {
-            const statusEl = document.getElementById(elementId);
-            statusEl.textContent = message;
-            statusEl.className = 'status-message status-' + type;
-            statusEl.style.display = 'block';
-        }
-    </script>
-</body>
-</html>
+            const statusEl = docume
