@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1976d2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Catalyst Scanner</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px 20px;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        .step-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1976d2;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #video {
+            width: 100%;
+            display: block;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            border: 3px solid #4CAF50;
+            border-radius: 12px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        }
+
+        .scan-corners {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .scan-corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #4CAF50;
+        }
+
+        .scan-corner.top-left {
+            top: -4px;
+            left: -4px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .scan-corner.top-right {
+            top: -4px;
+            right: -4px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .scan-corner.bottom-left {
+            bottom: -4px;
+            left: -4px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .scan-corner.bottom-right {
+            bottom: -4px;
+            right: -4px;
+            border-left: none;
+            border-top: none;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        .info-card {
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .info-value {
+            font-weight: 500;
+            color: #333;
+            text-align: right;
+        }
+
+        .lot-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1976d2;
+            text-align: center;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .captured-image {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .success-icon {
+            text-align: center;
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-info {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50 0%, #45a049 100%);
+            transition: width 0.3s ease;
+        }
+
+        .scan-instruction {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .preview-images {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .preview-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .preview-card img {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .preview-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔬 Catalyst Scanner</h1>
+            <p>OSSDSIGN Medical Device Tracking</p>
+        </div>
+
+        <div class="content">
+            <!-- Step 1: Scan Product QR -->
+            <div id="step1" class="step active">
+                <div class="step-title">Step 1: Scan Product QR Code</div>
+                <div class="scan-instruction">
+                    Position the QR code within the frame
+                </div>
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <div class="scan-overlay">
+                        <div class="scan-corners">
+                            <div class="scan-corner top-left"></div>
+                            <div class="scan-corner top-right"></div>
+                            <div class="scan-corner bottom-left"></div>
+                            <div class="scan-corner bottom-right"></div>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="canvas"></canvas>
+                <div id="scanStatus" class="status-message status-info" style="display:none;"></div>
+            </div>
+
+            <!-- Step 2: Confirm Lot Number -->
+            <div id="step2" class="step">
+                <div class="step-title">Step 2: Confirm Lot Number</div>
+                <div class="lot-number" id="lotNumberDisplay"></div>
+                <div class="info-card">
+                    <div class="info-row">
+                        <span class="info-label">Article Number:</span>
+                        <span class="info-value" id="articleNumber"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Expiry Date:</span>
+                        <span class="info-value" id="expiryDate"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">UDI:</span>
+                        <span class="info-value" id="udi"></span>
+                    </div>
+                </div>
+                <img id="productImage" class="captured-image" style="display:none;">
+                <div class="alert alert-warning">
+                    ⚠️ Please verify the lot number matches the physical label
+                </div>
+                <button class="btn btn-primary" onclick="confirmLotNumber()">✓ Correct - Continue</button>
+                <button class="btn btn-secondary" onclick="rescanProduct()">↻ Rescan Product</button>
+            </div>
+
+            <!-- Step 3: Scan Patient Sticker -->
+            <div id="step3" class="step">
+                <div class="step-title">Step 3: Scan Patient Sticker</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 66%;"></div>
+                </div>
+                <div class="scan-instruction">
+                    Scan the patient identification sticker
+                </div>
+                <div class="video-container">
+                    <video id="video2" autoplay playsinline></video>
+                    <div class="scan-overlay">
+                        <div class="scan-corners">
+                            <div class="scan-corner top-left"></div>
+                            <div class="scan-corner top-right"></div>
+                            <div class="scan-corner bottom-left"></div>
+                            <div class="scan-corner bottom-right"></div>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="canvas2"></canvas>
+                <div id="scanStatus2" class="status-message status-info" style="display:none;"></div>
+                <button class="btn btn-secondary" onclick="capturePatientManually()">📷 Capture Image Instead</button>
+            </div>
+
+            <!-- Step 4: Review and Send -->
+            <div id="step4" class="step">
+                <div class="step-title">Step 4: Review & Send</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 100%;"></div>
+                </div>
+                
+                <div class="preview-images">
+                    <div class="preview-card">
+                        <img id="productPreview">
+                        <div class="preview-label">Product Label</div>
+                    </div>
+                    <div class="preview-card">
+                        <img id="patientPreview">
+                        <div class="preview-label">Patient Sticker</div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-row">
+                        <span class="info-label">Lot Number:</span>
+                        <span class="info-value" id="finalLotNumber"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Date:</span>
+                        <span class="info-value" id="finalDate"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">User:</span>
+                        <span class="info-value">Jones M</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Patient Data:</span>
+                        <span class="info-value" id="patientData"></span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="sendEmail()" id="sendBtn">📧 Send Report</button>
+                <button class="btn btn-secondary" onclick="startOver()">↻ Start Over</button>
+            </div>
+
+            <!-- Step 5: Success -->
+            <div id="step5" class="step">
+                <div class="success-icon">✅</div>
+                <div class="step-title" style="text-align: center;">Email Sent Successfully!</div>
+                <div class="status-message status-success">
+                    Report sent to ja@ossdsign.com
+                </div>
+                <div class="info-card">
+                    <div class="info-row">
+                        <span class="info-label">Lot Number:</span>
+                        <span class="info-value" id="successLotNumber"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Sent:</span>
+                        <span class="info-value" id="successTime"></span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="startOver()">Scan Another</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let productData = {
+            lotNumber: '',
+            articleNumber: '',
+            expiryDate: '',
+            udi: '',
+            rawData: '',
+            image: null
+        };
+
+        let patientData = {
+            rawData: '',
+            image: null
+        };
+
+        let scanning = false;
+        let currentStep = 1;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            startProductScan();
+        });
+
+        // Parse GS1 QR code
+        function parseGS1(data) {
+            const parsed = {};
+            const regex = /\((\d+)\)([^(]+)/g;
+            let match;
+            
+            while ((match = regex.exec(data)) !== null) {
+                const ai = match[1];
+                const value = match[2].trim();
+                parsed[ai] = value;
+            }
+            
+            return parsed;
+        }
+
+        // Format expiry date from YYMMDD to readable format
+        function formatExpiryDate(yymmdd) {
+            if (yymmdd.length !== 6) return yymmdd;
+            const year = '20' + yymmdd.substring(0, 2);
+            const month = yymmdd.substring(2, 4);
+            const day = yymmdd.substring(4, 6);
+            return `${year}-${month}-${day}`;
+        }
+
+        // Start product QR scan
+        function startProductScan() {
+            scanning = true;
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+
+            navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            })
+            .then(function(stream) {
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true);
+                video.play();
+                requestAnimationFrame(tick);
+            })
+            .catch(function(err) {
+                console.error('Camera error:', err);
+                showStatus('scanStatus', 'Camera access denied. Please enable camera permissions.', 'error');
+            });
+
+            function tick() {
+                if (!scanning) return;
+
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'dontInvert',
+                    });
+
+                    if (code) {
+                        handleProductQR(code.data, canvas);
+                        return;
+                    }
+                }
+                requestAnimationFrame(tick);
+            }
+        }
+
+        // Handle product QR code
+        function handleProductQR(data, canvas) {
+            scanning = false;
+            const video = document.getElementById('video');
+            
+            // Capture image
+            productData.image = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // Stop video stream
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            // Parse GS1 data
+            const parsed = parseGS1(data);
+            
+            productData.rawData = data;
+            productData.udi = parsed['01'] || 'Not found';
+            productData.articleNumber = parsed['241'] || 'Not found';
+            productData.expiryDate = parsed['17'] ? formatExpiryDate(parsed['17']) : 'Not found';
+            productData.lotNumber = parsed['10'] || 'Not found';
+
+            // Show confirmation screen
+            showStep(2);
+            document.getElementById('lotNumberDisplay').textContent = productData.lotNumber;
+            document.getElementById('articleNumber').textContent = productData.articleNumber;
+            document.getElementById('expiryDate').textContent = productData.expiryDate;
+            document.getElementById('udi').textContent = productData.udi;
+            
+            const productImage = document.getElementById('productImage');
+            productImage.src = productData.image;
+            productImage.style.display = 'block';
+
+            showStatus('scanStatus', '✓ QR Code scanned successfully!', 'success');
+        }
+
+        // Confirm lot number
+        function confirmLotNumber() {
+            showStep(3);
+            startPatientScan();
+        }
+
+        // Rescan product
+        function rescanProduct() {
+            showStep(1);
+            startProductScan();
+        }
+
+        // Start patient scan
+        function startPatientScan() {
+            scanning = true;
+            const video = document.getElementById('video2');
+            const canvas = document.getElementById('canvas2');
+            const context = canvas.getContext('2d');
+
+            navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            })
+            .then(function(stream) {
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true);
+                video.play();
+                requestAnimationFrame(tick);
+            })
+            .catch(function(err) {
+                console.error('Camera error:', err);
+                showStatus('scanStatus2', 'Camera access denied.', 'error');
+            });
+
+            function tick() {
+                if (!scanning) return;
+
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'dontInvert',
+                    });
+
+                    if (code) {
+                        handlePatientScan(code.data, canvas);
+                        return;
+                    }
+                }
+                requestAnimationFrame(tick);
+            }
+        }
+
+        // Handle patient scan
+        function handlePatientScan(data, canvas) {
+            scanning = false;
+            const video = document.getElementById('video2');
+            
+            // Capture image
+            patientData.image = canvas.toDataURL('image/jpeg', 0.9);
+            patientData.rawData = data;
+            
+            // Stop video stream
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            proceedToReview();
+        }
+
+        // Capture patient sticker manually
+        function capturePatientManually() {
+            const video = document.getElementById('video2');
+            const canvas = document.getElementById('canvas2');
+            const context = canvas.getContext('2d');
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                patientData.image = canvas.toDataURL('image/jpeg', 0.9);
+                patientData.rawData = 'Manual capture - no barcode data';
+                
+                scanning = false;
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                
+                proceedToReview();
+            }
+        }
+
+        // Proceed to review
+        function proceedToReview() {
+            showStep(4);
+            
+            document.getElementById('productPreview').src = productData.image;
+            document.getElementById('patientPreview').src = patientData.image;
+            document.getElementById('finalLotNumber').textContent = productData.lotNumber;
+            document.getElementById('finalDate').textContent = new Date().toLocaleDateString();
+            document.getElementById('patientData').textContent = patientData.rawData.substring(0, 50) + 
+                (patientData.rawData.length > 50 ? '...' : '');
+        }
+
+        // Send email with PDF
+        async function sendEmail() {
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '📧 Generating PDF...';
+
+            try {
+                // Generate PDF
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF();
+                
+                // Add title
+                pdf.setFontSize(20);
+                pdf.setTextColor(25, 118, 210);
+                pdf.text('Catalyst Usage Report', 105, 20, { align: 'center' });
+                
+                // Add metadata
+                pdf.setFontSize(12);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`Date: ${new Date().toLocaleString()}`, 20, 35);
+                pdf.text(`User: Jones M`, 20, 42);
+                pdf.text(`Lot Number: ${productData.lotNumber}`, 20, 49);
+                
+                // Add separator line
+                pdf.setDrawColor(200, 200, 200);
+                pdf.line(20, 55, 190, 55);
+                
+                // Product Information
+                pdf.setFontSize(14);
+                pdf.setTextColor(25, 118, 210);
+                pdf.text('Product Information', 20, 65);
+                
+                pdf.setFontSize(11);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`Article Number: ${productData.articleNumber}`, 20, 73);
+                pdf.text(`Expiry Date: ${productData.expiryDate}`, 20, 80);
+                pdf.text(`UDI: ${productData.udi}`, 20, 87);
+                
+                // Add product image
+                if (productData.image) {
+                    pdf.text('Product Label:', 20, 100);
+                    pdf.addImage(productData.image, 'JPEG', 20, 105, 80, 60);
+                }
+                
+                // Patient Information
+                pdf.addPage();
+                pdf.setFontSize(14);
+                pdf.setTextColor(25, 118, 210);
+                pdf.text('Patient Information', 20, 20);
+                
+                pdf.setFontSize(11);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text(`Scanned Data: ${patientData.rawData}`, 20, 30, { maxWidth: 170 });
+                
+                // Add patient image
+                if (patientData.image) {
+                    pdf.text('Patient Sticker:', 20, 45);
+                    pdf.addImage(patientData.image, 'JPEG', 20, 50, 80, 60);
+                }
+                
+                // Convert PDF to base64
+                const pdfBase64 = pdf.output('datauristring').split(',')[1];
+                
+                // Create email
+                const subject = `Catalyst Usage, ${new Date().toLocaleDateString()}, Jones M`;
+                const body = 'This is awesome!!!';
+                const recipient = 'ja@ossdsign.com';
+                
+                // Create mailto link with PDF attachment hint
+                // Note: Most mobile email clients don't support attachments via mailto
+                // Will provide download link instead
+                const pdfBlob = pdf.output('blob');
+                const pdfUrl = URL.createObjectURL(pdfBlob);
+                
+                sendBtn.textContent = '📧 Opening Email...';
+                
+                // Open email client
+                const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + '\n\n[PDF attachment should be downloaded separately - see next step]')}`;
+                window.location.href = mailtoLink;
+                
+                // Download PDF
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = pdfUrl;
+                    a.download = `Catalyst_Report_${productData.lotNumber}_${new Date().toISOString().split('T')[0]}.pdf`;
+                    a.click();
+                    
+                    // Show success
+                    showStep(5);
+                    document.getElementById('successLotNumber').textContent = productData.lotNumber;
+                    document.getElementById('successTime').textContent = new Date().toLocaleString();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Error generating PDF: ' + error.message);
+                sendBtn.disabled = false;
+                sendBtn.textContent = '📧 Send Report';
+            }
+        }
+
+        // Start over
+        function startOver() {
+            productData = {
+                lotNumber: '',
+                articleNumber: '',
+                expiryDate: '',
+                udi: '',
+                rawData: '',
+                image: null
+            };
+            patientData = {
+                rawData: '',
+                image: null
+            };
+            
+            showStep(1);
+            startProductScan();
+        }
+
+        // Show step
+        function showStep(step) {
+            currentStep = step;
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.getElementById('step' + step).classList.add('active');
+        }
+
+        // Show status message
+        function showStatus(elementId, message, type) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.textContent = message;
+            statusEl.className = 'status-message status-' + type;
+            statusEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
