@@ -79,7 +79,7 @@
             margin-bottom: 20px;
         }
 
-        #video {
+        #video, #video2 {
             width: 100%;
             display: block;
         }
@@ -89,11 +89,25 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 250px;
-            height: 250px;
             border: 3px solid #4CAF50;
             border-radius: 12px;
             box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .scan-overlay.small {
+            width: 150px;
+            height: 150px;
+        }
+
+        .scan-overlay.medium {
+            width: 200px;
+            height: 200px;
+        }
+
+        .scan-overlay.large {
+            width: 280px;
+            height: 280px;
         }
 
         .scan-corners {
@@ -137,6 +151,30 @@
             border-top: none;
         }
 
+        .size-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .size-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #1976d2;
+            background: white;
+            color: #1976d2;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .size-btn.active {
+            background: #1976d2;
+            color: white;
+        }
+
         canvas {
             display: none;
         }
@@ -168,6 +206,8 @@
             font-weight: 500;
             color: #333;
             text-align: right;
+            word-break: break-all;
+            max-width: 60%;
         }
 
         .lot-number {
@@ -263,6 +303,11 @@
             color: #1565c0;
         }
 
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
         .progress-bar {
             height: 6px;
             background: #e0e0e0;
@@ -280,7 +325,7 @@
         .scan-instruction {
             text-align: center;
             color: #666;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             font-size: 14px;
         }
 
@@ -322,6 +367,59 @@
             color: #856404;
             border: 1px solid #ffc107;
         }
+
+        .debug-box {
+            background: #263238;
+            color: #4CAF50;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .toggle-debug {
+            padding: 8px 16px;
+            background: #263238;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .manual-entry {
+            margin-top: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
     </style>
 </head>
 <body>
@@ -335,12 +433,23 @@
             <!-- Step 1: Scan Product QR -->
             <div id="step1" class="step active">
                 <div class="step-title">Step 1: Scan Product QR Code</div>
+                
+                <button class="toggle-debug" onclick="toggleDebug()">🐛 Toggle Debug</button>
+                <div id="debugBox" class="debug-box" style="display:none;">Waiting for scan...</div>
+                
                 <div class="scan-instruction">
-                    Position the QR code within the frame
+                    Adjust scan box size for your label
                 </div>
+                
+                <div class="size-controls">
+                    <button class="size-btn active" onclick="setScanSize('small')">Small</button>
+                    <button class="size-btn" onclick="setScanSize('medium')">Medium</button>
+                    <button class="size-btn" onclick="setScanSize('large')">Large</button>
+                </div>
+                
                 <div class="video-container">
                     <video id="video" autoplay playsinline></video>
-                    <div class="scan-overlay">
+                    <div class="scan-overlay small" id="scanOverlay">
                         <div class="scan-corners">
                             <div class="scan-corner top-left"></div>
                             <div class="scan-corner top-right"></div>
@@ -350,7 +459,33 @@
                     </div>
                 </div>
                 <canvas id="canvas"></canvas>
+                
                 <div id="scanStatus" class="status-message status-info" style="display:none;"></div>
+                
+                <div class="manual-entry" style="display:none;" id="manualEntrySection">
+                    <div class="alert alert-warning">
+                        ⚠️ Having trouble scanning? Enter data manually:
+                    </div>
+                    <div class="input-group">
+                        <label>Lot Number (Required):</label>
+                        <input type="text" id="manualLotNumber" placeholder="e.g., 24CL10-01">
+                    </div>
+                    <div class="input-group">
+                        <label>Article Number:</label>
+                        <input type="text" id="manualArticleNumber" placeholder="Optional">
+                    </div>
+                    <div class="input-group">
+                        <label>Expiry Date (YYYY-MM-DD):</label>
+                        <input type="text" id="manualExpiryDate" placeholder="Optional">
+                    </div>
+                    <div class="input-group">
+                        <label>UDI:</label>
+                        <input type="text" id="manualUDI" placeholder="Optional">
+                    </div>
+                    <button class="btn btn-primary" onclick="submitManualEntry()">✓ Submit Manual Entry</button>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="showManualEntry()">⌨️ Can't Scan? Enter Manually</button>
             </div>
 
             <!-- Step 2: Confirm Lot Number -->
@@ -372,6 +507,10 @@
                     </div>
                 </div>
                 <img id="productImage" class="captured-image" style="display:none;">
+                
+                <button class="toggle-debug" onclick="toggleDebug()">🐛 Show Raw Data</button>
+                <div id="debugBox2" class="debug-box" style="display:none;"></div>
+                
                 <div class="alert alert-warning">
                     ⚠️ Please verify the lot number matches the physical label
                 </div>
@@ -385,12 +524,20 @@
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: 66%;"></div>
                 </div>
+                
                 <div class="scan-instruction">
                     Scan the patient identification sticker
                 </div>
+                
+                <div class="size-controls">
+                    <button class="size-btn active" onclick="setScanSize2('small')">Small</button>
+                    <button class="size-btn" onclick="setScanSize2('medium')">Medium</button>
+                    <button class="size-btn" onclick="setScanSize2('large')">Large</button>
+                </div>
+                
                 <div class="video-container">
                     <video id="video2" autoplay playsinline></video>
-                    <div class="scan-overlay">
+                    <div class="scan-overlay small" id="scanOverlay2">
                         <div class="scan-corners">
                             <div class="scan-corner top-left"></div>
                             <div class="scan-corner top-right"></div>
@@ -485,22 +632,80 @@
 
         let scanning = false;
         let currentStep = 1;
+        let debugMode = false;
+        let scanSize = 'small';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             startProductScan();
         });
 
-        // Parse GS1 QR code
+        // Toggle debug mode
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const debugBoxes = document.querySelectorAll('.debug-box');
+            debugBoxes.forEach(box => {
+                box.style.display = debugMode ? 'block' : 'none';
+            });
+        }
+
+        // Log debug message
+        function debugLog(message) {
+            const debugBox = document.getElementById('debugBox');
+            if (debugBox) {
+                const timestamp = new Date().toLocaleTimeString();
+                debugBox.textContent += `\n[${timestamp}] ${message}`;
+                debugBox.scrollTop = debugBox.scrollHeight;
+            }
+            console.log(message);
+        }
+
+        // Set scan size
+        function setScanSize(size) {
+            scanSize = size;
+            const overlay = document.getElementById('scanOverlay');
+            overlay.className = 'scan-overlay ' + size;
+            
+            document.querySelectorAll('#step1 .size-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function setScanSize2(size) {
+            const overlay = document.getElementById('scanOverlay2');
+            overlay.className = 'scan-overlay ' + size;
+            
+            document.querySelectorAll('#step3 .size-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        // Parse GS1 QR code with better error handling
         function parseGS1(data) {
+            debugLog('Parsing GS1 data: ' + data);
             const parsed = {};
+            
+            // Try standard GS1 format with parentheses
             const regex = /\((\d+)\)([^(]+)/g;
             let match;
+            let matchCount = 0;
             
             while ((match = regex.exec(data)) !== null) {
                 const ai = match[1];
                 const value = match[2].trim();
                 parsed[ai] = value;
+                matchCount++;
+                debugLog(`Found AI(${ai}): ${value}`);
+            }
+            
+            debugLog(`Total GS1 fields found: ${matchCount}`);
+            
+            // If no matches, try alternative formats
+            if (matchCount === 0) {
+                debugLog('No GS1 format detected. Trying alternative parsing...');
+                // Could add alternative parsing here if needed
             }
             
             return parsed;
@@ -508,7 +713,10 @@
 
         // Format expiry date from YYMMDD to readable format
         function formatExpiryDate(yymmdd) {
-            if (yymmdd.length !== 6) return yymmdd;
+            if (!yymmdd || yymmdd.length !== 6) {
+                debugLog('Invalid expiry date format: ' + yymmdd);
+                return yymmdd || 'Not found';
+            }
             const year = '20' + yymmdd.substring(0, 2);
             const month = yymmdd.substring(2, 4);
             const day = yymmdd.substring(4, 6);
@@ -522,10 +730,17 @@
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
 
+            debugLog('Requesting camera access...');
+
             navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' } 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                } 
             })
             .then(function(stream) {
+                debugLog('Camera access granted');
                 video.srcObject = stream;
                 video.setAttribute('playsinline', true);
                 video.play();
@@ -533,7 +748,9 @@
             })
             .catch(function(err) {
                 console.error('Camera error:', err);
-                showStatus('scanStatus', 'Camera access denied. Please enable camera permissions.', 'error');
+                debugLog('Camera error: ' + err.message);
+                showStatus('scanStatus', 'Camera access denied. Please enable camera permissions in Chrome settings.', 'error');
+                document.getElementById('manualEntrySection').style.display = 'block';
             });
 
             function tick() {
@@ -550,6 +767,7 @@
                     });
 
                     if (code) {
+                        debugLog('QR Code detected!');
                         handleProductQR(code.data, canvas);
                         return;
                     }
@@ -562,6 +780,8 @@
         function handleProductQR(data, canvas) {
             scanning = false;
             const video = document.getElementById('video');
+            
+            debugLog('Raw QR data: ' + data);
             
             // Capture image
             productData.image = canvas.toDataURL('image/jpeg', 0.9);
@@ -576,9 +796,23 @@
             
             productData.rawData = data;
             productData.udi = parsed['01'] || 'Not found';
-            productData.articleNumber = parsed['241'] || 'Not found';
+            productData.articleNumber = parsed['241'] || parsed['240'] || 'Not found';
             productData.expiryDate = parsed['17'] ? formatExpiryDate(parsed['17']) : 'Not found';
             productData.lotNumber = parsed['10'] || 'Not found';
+
+            debugLog('Parsed lot number: ' + productData.lotNumber);
+            debugLog('Parsed article: ' + productData.articleNumber);
+            debugLog('Parsed expiry: ' + productData.expiryDate);
+            debugLog('Parsed UDI: ' + productData.udi);
+
+            // Check if we got valid data
+            if (productData.lotNumber === 'Not found' && productData.udi === 'Not found') {
+                showStatus('scanStatus', '⚠️ Could not parse QR code data. Please try again or enter manually.', 'warning');
+                document.getElementById('manualEntrySection').style.display = 'block';
+                scanning = true;
+                requestAnimationFrame(startProductScan);
+                return;
+            }
 
             // Show confirmation screen
             showStep(2);
@@ -591,18 +825,86 @@
             productImage.src = productData.image;
             productImage.style.display = 'block';
 
+            // Show raw data in debug box
+            const debugBox2 = document.getElementById('debugBox2');
+            debugBox2.textContent = 'Raw QR Data:\n' + data + '\n\nParsed Fields:\n' + JSON.stringify(parsed, null, 2);
+
             showStatus('scanStatus', '✓ QR Code scanned successfully!', 'success');
+        }
+
+        // Show manual entry
+        function showManualEntry() {
+            document.getElementById('manualEntrySection').style.display = 'block';
+            scanning = false;
+            const video = document.getElementById('video');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        // Submit manual entry
+        function submitManualEntry() {
+            const lotNumber = document.getElementById('manualLotNumber').value.trim();
+            
+            if (!lotNumber) {
+                alert('Please enter at least the lot number');
+                return;
+            }
+
+            // Capture current video frame as image
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                productData.image = canvas.toDataURL('image/jpeg', 0.9);
+            }
+
+            productData.lotNumber = lotNumber;
+            productData.articleNumber = document.getElementById('manualArticleNumber').value.trim() || 'Manually entered';
+            productData.expiryDate = document.getElementById('manualExpiryDate').value.trim() || 'Manually entered';
+            productData.udi = document.getElementById('manualUDI').value.trim() || 'Manually entered';
+            productData.rawData = 'Manual entry: ' + JSON.stringify(productData);
+
+            debugLog('Manual entry submitted: ' + productData.rawData);
+
+            // Stop video
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+
+            // Show confirmation
+            showStep(2);
+            document.getElementById('lotNumberDisplay').textContent = productData.lotNumber;
+            document.getElementById('articleNumber').textContent = productData.articleNumber;
+            document.getElementById('expiryDate').textContent = productData.expiryDate;
+            document.getElementById('udi').textContent = productData.udi;
+            
+            const productImage = document.getElementById('productImage');
+            if (productData.image) {
+                productImage.src = productData.image;
+                productImage.style.display = 'block';
+            }
+
+            const debugBox2 = document.getElementById('debugBox2');
+            debugBox2.textContent = productData.rawData;
         }
 
         // Confirm lot number
         function confirmLotNumber() {
+            debugLog('Lot number confirmed, moving to patient scan');
             showStep(3);
             startPatientScan();
         }
 
         // Rescan product
         function rescanProduct() {
+            debugLog('Rescanning product');
             showStep(1);
+            document.getElementById('manualEntrySection').style.display = 'none';
             startProductScan();
         }
 
@@ -614,7 +916,11 @@
             const context = canvas.getContext('2d');
 
             navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' } 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                } 
             })
             .then(function(stream) {
                 video.srcObject = stream;
@@ -791,7 +1097,7 @@
                     // Show success
                     showStep(5);
                     document.getElementById('successLotNumber').textContent = productData.lotNumber;
-                    document.getElementById('successTime').textContent = new Date().toLocaleString();
+                    document.getElementById('successTime').textContent = new Date().toLocaleTime String();
                 }, 1000);
                 
             } catch (error) {
@@ -816,6 +1122,9 @@
                 rawData: '',
                 image: null
             };
+            
+            document.getElementById('manualEntrySection').style.display = 'none';
+            document.getElementById('debugBox').textContent = 'Waiting for scan...';
             
             showStep(1);
             startProductScan();
