@@ -213,7 +213,7 @@
         <div class="header">
             <h1>🔬 Catalyst Scanner</h1>
             <p>OSSDSIGN Medical Device Tracking</p>
-            <p class="version">Version 2.1</p>
+            <p class="version">Version 2.2</p>
         </div>
 
         <div class="content">
@@ -222,9 +222,16 @@
                 <div class="step-title">Step 1: Scan Product QR Code</div>
                 
                 <div class="scan-instruction">
+                    <div id="cameraStatus" style="color: #ff9800; font-weight: bold; margin-bottom: 10px;">
+                        📹 Starting camera...
+                    </div>
                     Position the QR code within the green box<br>
                     Press the button when ready to capture
                 </div>
+                
+                <button class="btn btn-secondary" onclick="manualStartCamera()" id="startCameraBtn" style="display:none;">
+                    📹 Start Camera
+                </button>
                 
                 <div class="video-container">
                     <video id="video" autoplay playsinline></video>
@@ -397,6 +404,13 @@
 
         function startCamera(videoId) {
             const video = document.getElementById(videoId);
+            const statusEl = document.getElementById('cameraStatus');
+            
+            if (statusEl) {
+                statusEl.textContent = '📹 Requesting camera access...';
+                statusEl.style.color = '#ff9800';
+            }
+            
             navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
             })
@@ -405,10 +419,35 @@
                 video.srcObject = stream;
                 video.setAttribute('playsinline', true);
                 video.play();
+                
+                if (statusEl) {
+                    statusEl.textContent = '✅ Camera ready!';
+                    statusEl.style.color = '#4CAF50';
+                }
+                
+                console.log('Camera started successfully');
             })
             .catch(err => {
-                showStatus('scanStatus', 'Camera access denied', 'error');
+                console.error('Camera error:', err);
+                
+                if (statusEl) {
+                    statusEl.textContent = '❌ Camera failed: ' + err.message;
+                    statusEl.style.color = '#f44336';
+                }
+                
+                showStatus('scanStatus', 'Camera access denied. Check permissions in Settings.', 'error');
+                
+                const startBtn = document.getElementById('startCameraBtn');
+                if (startBtn) {
+                    startBtn.style.display = 'block';
+                }
             });
+        }
+        
+        function manualStartCamera() {
+            document.getElementById('startCameraBtn').style.display = 'none';
+            document.getElementById('scanStatus').style.display = 'none';
+            startCamera('video');
         }
 
         function stopCamera() {
