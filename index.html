@@ -213,7 +213,7 @@
         <div class="header">
             <h1>🔬 Catalyst Scanner</h1>
             <p>OSSDSIGN Medical Device Tracking</p>
-            <p class="version">Version 2.2</p>
+            <p class="version">Version 2.4</p>
         </div>
 
         <div class="content">
@@ -253,6 +253,34 @@
                 </button>
                 
                 <div id="scanStatus" class="status-message" style="display:none;"></div>
+                
+                <button class="btn btn-secondary" onclick="showManualEntry()" style="margin-top: 10px;">
+                    ⌨️ Enter Lot Number Manually
+                </button>
+                
+                <div id="manualEntry" style="display:none; margin-top: 20px;">
+                    <div class="alert alert-warning">
+                        📝 Enter product information manually:
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display:block; font-weight:600; margin-bottom:5px; color:#666;">Lot Number (Required):</label>
+                        <input type="text" id="manualLot" placeholder="e.g., 24CL10-01" style="width:100%; padding:12px; border:2px solid #e0e0e0; border-radius:8px; font-size:16px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display:block; font-weight:600; margin-bottom:5px; color:#666;">Article Number (Optional):</label>
+                        <input type="text" id="manualArticle" placeholder="Optional" style="width:100%; padding:12px; border:2px solid #e0e0e0; border-radius:8px; font-size:16px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display:block; font-weight:600; margin-bottom:5px; color:#666;">Expiry Date (Optional):</label>
+                        <input type="date" id="manualExpiry" style="width:100%; padding:12px; border:2px solid #e0e0e0; border-radius:8px; font-size:16px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display:block; font-weight:600; margin-bottom:5px; color:#666;">UDI (Optional):</label>
+                        <input type="text" id="manualUDI" placeholder="Optional" style="width:100%; padding:12px; border:2px solid #e0e0e0; border-radius:8px; font-size:16px;">
+                    </div>
+                    <button class="btn btn-primary" onclick="submitManualData()">✓ Submit</button>
+                    <button class="btn btn-secondary" onclick="hideManualEntry()">Cancel</button>
+                </div>
             </div>
 
             <!-- Step 2: Confirm Lot Number -->
@@ -472,13 +500,17 @@
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            // Try with inversionAttempts for better detection
+            let code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "attemptBoth",
+            });
 
             if (code) {
                 handleProductQR(code.data, canvas);
             } else {
-                showStatus('scanStatus', '❌ No QR code detected. Try again.', 'error');
-                setTimeout(() => document.getElementById('scanStatus').style.display = 'none', 3000);
+                showStatus('scanStatus', '❌ No QR code detected. Try: 1) Move closer/further 2) Better lighting 3) Manual entry', 'error');
+                setTimeout(() => document.getElementById('scanStatus').style.display = 'none', 5000);
             }
         }
 
@@ -604,7 +636,26 @@
             }
             
             const subject = `Catalyst Usage, ${new Date().toLocaleDateString()}, Jones M`;
-            const body = 'This is awesome!!!';
+            
+            // Create detailed email body with all scanned information
+            const body = `This is awesome!!!
+
+PRODUCT INFORMATION:
+Lot Number: ${productData.lotNumber}
+Article Number: ${productData.articleNumber}
+Expiry Date: ${productData.expiryDate}
+UDI: ${productData.udi}
+
+PATIENT INFORMATION:
+${patientData.rawData}
+
+DATE & USER:
+Date: ${new Date().toLocaleString()}
+User: Jones M
+
+---
+PDF report attached with images.
+`;
             const pdfBlob = pdf.output('blob');
             const pdfUrl = URL.createObjectURL(pdfBlob);
             
@@ -642,6 +693,67 @@
             el.textContent = msg;
             el.className = 'status-message status-' + type;
             el.style.display = 'block';
+        }
+        
+        function showManualEntry() {
+            document.getElementById('manualEntry').style.display = 'block';
+            document.getElementById('scanStatus').style.display = 'none';
+        }
+        
+        function hideManualEntry() {
+            document.getElementById('manualEntry').style.display = 'none';
+            // Clear fields
+            document.getElementById('manualLot').value = '';
+            document.getElementById('manualArticle').value = '';
+            document.getElementById('manualExpiry').value = '';
+            document.getElementById('manualUDI').value = '';
+        }
+        
+        function submitManualData() {
+            const lotNumber = document.getElementById('manualLot').value.trim();
+            
+            if (!lotNumber) {
+                alert('Please enter at least the Lot Number');
+                return;
+            }
+            
+            // Capture current video frame if possible
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                productData.image = canvas.toDataURL('image/jpeg', 0.9);
+            }
+            
+            // Get manual data
+            productData.lotNumber = lotNumber;
+            productData.articleNumber = document.getElementById('manualArticle').value.trim() || 'Manual entry';
+            
+            const expiryDate = document.getElementById('manualExpiry').value;
+            productData.expiryDate = expiryDate || 'Manual entry';
+            
+            productData.udi = document.getElementById('manualUDI').value.trim() || 'Manual entry';
+            productData.rawData = 'MANUAL ENTRY: ' + JSON.stringify(productData);
+            
+            stopCamera();
+            hideManualEntry();
+            
+            // Show confirmation screen
+            showStep(2);
+            document.getElementById('lotNumberDisplay').textContent = productData.lotNumber;
+            document.getElementById('articleNumber').textContent = productData.articleNumber;
+            document.getElementById('expiryDate').textContent = productData.expiryDate;
+            document.getElementById('udi').textContent = productData.udi;
+            
+            const img = document.getElementById('productImage');
+            if (productData.image) {
+                img.src = productData.image;
+                img.style.display = 'block';
+            }
         }
     </script>
 </body>
